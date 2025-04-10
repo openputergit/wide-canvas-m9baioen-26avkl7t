@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OffersMonkey AI Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100 font-[Inter]">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-blue-600 text-white p-4">
+            <div class="container mx-auto">
+                <div class="flex items-center justify-between">
+                    <h1 class="text-2xl font-bold">OffersMonkey Assistant</h1>
+                    <div class="flex items-center gap-4">
+                        <button id="helpBtn" class="bg-white text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors">
+                            <i class="bi bi-question-circle"></i> Help
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container mx-auto px-4 py-8">
+            <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
+                <!-- Chat Container -->
+                <div class="h-[600px] flex flex-col">
+                    <!-- Chat Messages -->
+                    <div id="chatMessages" class="flex-1 overflow-y-auto p-4 space-y-4">
+                        <div class="flex items-start gap-3">
+                            <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white">
+                                <i class="bi bi-robot"></i>
+                            </div>
+                            <div class="bg-gray-100 rounded-lg p-3 max-w-[80%]">
+                                <p>👋 Hello! I'm your OffersMonkey assistant. I can help you with finding the best deals, coupons, and answering any questions about offers. What would you like to know?</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Input Area -->
+                    <div class="border-t p-4">
+                        <form id="chatForm" class="flex gap-2">
+                            <input type="text" id="userInput" class="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Type your message here...">
+                            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                                <span>Send</span>
+                                <i class="bi bi-send"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let offersData = [];
+        
+        // Fetch and parse CSV data
+        async function fetchCSVData() {
+            try {
+                const response = await fetch('https://db.zetaverse.one/storage/v1/object/public/app-uploads/spreadsheet-1744285274972/fYBScb7ZPLOQuxszyXjhKpNq9js1/lg1b8dux.csv');
+                const csvText = await response.text();
+                
+                Papa.parse(csvText, {
+                    header: true,
+                    complete: function(results) {
+                        offersData = results.data;
+                        console.log('CSV data loaded:', offersData.length, 'records');
+                    }
+                });
+            } catch (error) {
+                console.error('Error fetching CSV:', error);
+            }
+        }
+
+        // Process user message and generate response
+        function processMessage(message) {
+            message = message.toLowerCase();
+            
+            // Search for relevant offers
+            let response = '';
+            
+            if (message.includes('hello') || message.includes('hi')) {
+                return "Hello! How can I help you find the best deals today?";
+            }
+            
+            if (message.includes('deal') || message.includes('offer')) {
+                const relevantOffers = offersData.filter(offer => 
+                    offer.status === 'active' && 
+                    offer.featured === 'Yes'
+                ).slice(0, 3);
+                
+                response = "Here are some great deals I found:\n\n";
+                relevantOffers.forEach(offer => {
+                    response += `🏷️ ${offer.title}\n`;
+                    response += `💰 ${offer.offer_value} off at ${offer.store}\n`;
+                    response += `🎫 Use code: ${offer.code}\n\n`;
+                });
+                
+                return response;
+            }
+
+            if (message.includes('coupon') || message.includes('code')) {
+                const codes = offersData.filter(offer => 
+                    offer.code && offer.status === 'active'
+                ).slice(0, 3);
+                
+                response = "Here are some active coupon codes:\n\n";
+                codes.forEach(offer => {
+                    response += `${offer.store}: ${offer.code} - ${offer.offer_value} off\n`;
+                });
+                
+                return response;
+            }
+
+            return "I'm sorry, I couldn't understand that. Would you like to know about current deals, coupon codes, or specific stores?";
+        }
+
+        // UI Handling
+        const chatMessages = document.getElementById('chatMessages');
+        const chatForm = document.getElementById('chatForm');
+        const userInput = document.getElementById('userInput');
+
+        function addMessage(message, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'flex items-start gap-3' + (isUser ? ' justify-end' : '');
+            
+            const messageContent = `
+                ${!isUser ? `
+                    <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white">
+                        <i class="bi bi-robot"></i>
+                    </div>
+                ` : ''}
+                <div class="${isUser ? 'bg-blue-600 text-white' : 'bg-gray-100'} rounded-lg p-3 max-w-[80%]">
+                    <p style="white-space: pre-line">${message}</p>
+                </div>
+                ${isUser ? `
+                    <div class="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                        <i class="bi bi-person"></i>
+                    </div>
+                ` : ''}
+            `;
+            
+            messageDiv.innerHTML = messageContent;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            // Add user message
+            addMessage(message, true);
+            userInput.value = '';
+
+            // Add bot response
+            const response = processMessage(message);
+            setTimeout(() => {
+                addMessage(response);
+            }, 500);
+        });
+
+        // Initialize
+        fetchCSVData();
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
